@@ -12,6 +12,15 @@ db.serialize(() => {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
 });
 
 console.log("База данных запущена!");

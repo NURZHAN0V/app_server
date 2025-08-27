@@ -1,8 +1,12 @@
 const express = require('express');
 const db = require('./config/db');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const port = 3000;
+
+const JWT_SECRET = 'Секретная-фраза-в-2025-ГОДУ'
 
 app.use(express.json())
 
@@ -40,10 +44,49 @@ app.post('/tasks', (req, res) => {
   });
 });
 
+// здесь будут маршруты для пользователей
+
+// регистрация пользователя
+app.post('/auth/register', (req, res) => {
+  const { email, pass } = req.body;
+
+  const password_hash = bcrypt.hashSync(pass, 10);
+  db.run('INSERT INTO users (email, password) VALUES (?, ?)', [email, password_hash], (err) => {
+    if (err) return res.status(500).json({ error: err });
+
+    res.status(201).json({
+      message: "пользователь успешно создан",
+      email
+    });
+  });
+});
+
+// авторизация
+app.post('/auth/login', (req, res) => {
+  const { email, pass } = req.body;
+
+  db.get('SELECT id, email, password FROM users WHERE email = ?', [email], (err, user) => {
+    if (err) return res.status(500).json({ error: err });
+    if (!user) return res.status(401).json({ error: 'Неверный email или пароль' });
+
+    const ok = bcrypt.compareSync(pass, user.password);
+    if (!ok) return res.status(401).json({ error: 'Неверный email или пароль' });
+
+    const token = jwt.sign({
+      id: user.id,
+      email: user.email
+    }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      token
+    });
+  });
+});
+
+
 app.listen(port, () => {
   console.log(`Приложение запущено и работает на порту ${port}`)
 });
-
 
 // закрытие базы данных по завершению работы сервера
 const shutdown = () => {
