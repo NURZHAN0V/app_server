@@ -10,6 +10,19 @@ const JWT_SECRET = 'Секретная-фраза-в-2025-ГОДУ'
 
 app.use(express.json())
 
+function authenticate(req, res, next) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+
+  if (!token) return res.status(401).json({ error: "Нужен токен авторизации" });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(401).json({ error: "Токен недействительный или истек" });
+    req.user = user;
+    next();
+  });
+};
+
 app.get('/', (req, res) => {
   res.send('Привет, мир! Сервер обновился!')
 });
@@ -28,7 +41,7 @@ app.get('/hello/:name', (req, res) => {
 });
 
 // Задачи CRUD
-app.post('/tasks', (req, res) => {
+app.post('/tasks', authenticate, (req, res) => {
   const { title } = req.body;
 
   if (!title) return res.status(400).json({ error: 'Поле title пустое' })
@@ -80,6 +93,17 @@ app.post('/auth/login', (req, res) => {
     res.json({
       token
     });
+  });
+});
+
+app.get('/me', authenticate, (req, res) => {
+  db.get(`SELECT id, email, created_at FROM users WHERE id = ?`, [req.user.id], (err, user) => {
+    if (err) return res.status(500).json({ error: "Не удалось получить пользователя" });
+    console.log(user);
+    
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+
+    res.json({ user })
   });
 });
 
