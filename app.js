@@ -40,20 +40,60 @@ app.get('/hello/:name', (req, res) => {
   res.json({ message: `Привет, ${name}!` });
 });
 
-// Задачи CRUD
+// Задачи CRUD: Create, Read, Update, Delete
 app.post('/tasks', authenticate, (req, res) => {
   const { title } = req.body;
 
   if (!title) return res.status(400).json({ error: 'Поле title пустое' })
 
-  const sql = 'INSERT INTO tasks (title) VALUES (?)';
-  db.run(sql, [title], (err) => {
+  const sql = 'INSERT INTO tasks (title, user_id) VALUES (?, ?)';
+  db.run(sql, [title, req.user.id], (err) => {
     if (err) return res.status(500).json({ error: 'Не удалось создать задачу' });
 
     res.status(201).json({
       message: 'Задача успешно создана',
       title: title
     });
+  });
+});
+
+app.get('/tasks', authenticate, (req, res) => {
+  const sql = 'SELECT id, title, done, created_at FROM tasks WHERE user_id = ?';
+  db.all(sql, [req.user.id], (err, tasks) => {
+    if (err) return res.status(500).json({ error: "Не удалось получить задачи" });
+    res.json(tasks);
+  });
+});
+
+app.get('/tasks/:id', authenticate, (req, res) => {
+  const { id } = req.params;
+  const sql = 'SELECT id, title, done, created_at FROM tasks WHERE id = ? AND user_id = ?';
+  db.get(sql, [id, req.user.id], (err, task) => {
+    if (err) return res.status(500).json({ error: "Не удалось получить задачи" });
+    res.json(task);
+  });
+});
+
+app.put('/tasks/:id', authenticate, (req, res) => {
+  const { id } = req.params;
+  const { title, done } = req.body;
+
+  if (!title) return res.status(400).json({ error: "Поле title не найдено" });
+
+  const sql = `UPDATE tasks SET title = ?, done = ? WHERE id = ? AND user_id = ?`;
+
+  db.run(sql, [title, done, id, req.user.id], (err) => {
+    if (err) return res.status(500).json({ error: "Не удалось обновить задачу" });
+    res.json({ success: "Данные успешно обновлены" });
+  });
+});
+
+app.delete('/tasks/:id', authenticate, (req, res) => {
+  const { id } = req.params;
+  const sql = "DELETE FROM tasks WHERE id = ? AND user_id = ?";
+  db.run(sql, [id, req.user.id], (err) => {
+    if (err) return res.status(500).json({ error: "Не удалось удалить задачу" });
+    res.json({ success: "Задача была удалена" });
   });
 });
 
